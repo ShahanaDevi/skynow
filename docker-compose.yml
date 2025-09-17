@@ -1,0 +1,29 @@
+
+
+services:
+  backend:
+    build: ./backend
+    container_name: skynow-backend
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build: ./frontend
+    container_name: skynow-frontend
+    ports:
+      - "3000:3000"
+
+  db:
+    image: mysql:8
+    container_name: skynow-db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: skynowdb
+    ports:
+      - "3306:3306"
+
+  redis:
+    image: redis:alpine
+    container_name: skynow-redis
+    ports:
+      - "6379:6379"
