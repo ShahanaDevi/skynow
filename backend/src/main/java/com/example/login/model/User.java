@@ -1,10 +1,11 @@
 package com.example.login.model;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
-
 
 
 @Entity
@@ -14,6 +15,7 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(unique = true, nullable = false)
     @NotBlank(message = "Username is required")
     private String username;
 
@@ -25,8 +27,10 @@ public class User {
     @NotBlank(message = "Password is required")
     private String password;
 
-    @Transient // not stored in DB
+    @Transient
+    @NotBlank(message = "Confirm Password is required", groups = RegistrationGroup.class)
     private String confirmPassword;
+
 
     // Getters and Setters
     public Long getId() { return id; }

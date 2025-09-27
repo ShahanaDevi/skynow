@@ -12,23 +12,33 @@ import java.util.Optional;
 public class AdminService {
 
     @Autowired
-    private AdminRepository adminRepository; // ✅ Correct instance
+    private AdminRepository adminRepository;
 
     private BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    // ✅ Save admin with hashed password
-    public Admin saveAdmin(Admin admin) {
-        admin.setPassword(passwordEncoder.encode(admin.getPassword())); // hash the password
+    // Register new admin
+    public Admin register(Admin admin) throws Exception {
+        if (adminRepository.findByUsername(admin.getUsername()).isPresent()) {
+            throw new Exception("Username already exists. Please choose another.");
+        }
+
+        admin.setPassword(passwordEncoder.encode(admin.getPassword())); // hash password
         return adminRepository.save(admin);
     }
 
-    // ✅ Login check
+    // Validate login
     public boolean login(String username, String password) {
-        Optional<Admin> adminOpt = adminRepository.findByUsername(username); // ✅ fixed typo
+        Optional<Admin> adminOpt = adminRepository.findByUsername(username);
 
         if (adminOpt.isPresent()) {
-            return passwordEncoder.matches(password, adminOpt.get().getPassword());
+            Admin admin = adminOpt.get();
+            return passwordEncoder.matches(password, admin.getPassword());
         }
         return false;
+    }
+
+    // Get admin by username
+    public Optional<Admin> getByUsername(String username) {
+        return adminRepository.findByUsername(username);
     }
 }
