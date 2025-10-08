@@ -11,6 +11,11 @@ target/
 *.jar
 *.war
 
+# Ignore Spring Boot config files
+src/main/resources/application.properties
+src/main/resources/application-dev.properties
+src/main/resources/application-prod.properties
+
 ########################################
 # IntelliJ IDEA
 ########################################
@@ -58,6 +63,14 @@ dist/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+########################################
+# Docker / DevOps
+########################################
+docker-compose.yml
+docker-compose.override.yml
+.env
+.env.local
 
 ########################################
 # OS / Misc

@@ -1,102 +1,57 @@
 package com.example.skynow.controller;
 
-import com.example.skynow.model.Admin;
 import com.example.skynow.model.User;
+import com.example.skynow.model.Admin;
 import com.example.skynow.service.AuthService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
+@RequiredArgsConstructor
 public class AuthController {
 
-    @Autowired
-    private AuthService authService;
+    private final AuthService authService;
 
-    // ------------------ USER ENDPOINTS ------------------
-
+    // USER ENDPOINTS
     @PostMapping("/user/register")
-    public ResponseEntity<?> registerUser(@Valid @RequestBody User user) {
-        try {
-            User savedUser = authService.registerUser(user);
-            return ResponseEntity.ok("User registered successfully with ID: " + savedUser.getId());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
-        }
+    public User registerUser(@RequestBody User user) throws Exception {
+        return authService.registerUser(user);
     }
 
     @PostMapping("/user/login")
-    public ResponseEntity<?> loginUser(@RequestBody Map<String, String> request) {
-        try {
-            String token = authService.loginUser(request.get("loginId"), request.get("password"));
-            Map<String, Object> response = new HashMap<>();
-            response.put("message", "Login successful");
-            response.put("token", token);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
-        }
+    public String loginUser(@RequestParam String loginId, @RequestParam String password) throws Exception {
+        return authService.loginUser(loginId, password);
     }
 
     @PostMapping("/user/forgot-password")
-    public ResponseEntity<?> forgotPasswordUser(@RequestBody Map<String, String> request) {
-        try {
-            String msg = authService.forgotPasswordUser(request.get("loginId"));
-            return ResponseEntity.ok(msg);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+    public String forgotPasswordUser(@RequestParam String loginId) throws Exception {
+        return authService.forgotPasswordUser(loginId);
     }
 
     @PostMapping("/user/change-password")
-    public ResponseEntity<?> changePasswordUser(@RequestBody Map<String, String> request) {
-        try {
-            String msg = authService.changePasswordUser(
-                    request.get("loginId"),
-                    request.get("oldPassword"),
-                    request.get("newPassword")
-            );
-            return ResponseEntity.ok(msg);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+    public String changePasswordUser(
+            @RequestParam String loginId,
+            @RequestParam String oldPassword,
+            @RequestParam String newPassword) throws Exception {
+        return authService.changePasswordUser(loginId, oldPassword, newPassword);
     }
 
-    @GetMapping("/user/all")
-    public ResponseEntity<List<User>> getAllUsers() {
-        List<User> users = authService.getAllUsers();
-        return ResponseEntity.ok(users);
+    @GetMapping("/users")
+    public List<User> getAllUsers() {
+        return authService.getAllUsers();
     }
 
-    // ------------------ ADMIN ENDPOINTS ------------------
-
+    // ADMIN ENDPOINTS
     @PostMapping("/admin/register")
-    public ResponseEntity<?> registerAdmin(@RequestBody Admin admin) {
-        try {
-            Admin savedAdmin = authService.registerAdmin(admin);
-            return ResponseEntity.ok("Admin registered with ID: " + savedAdmin.getId());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
-        }
+    public Admin registerAdmin(@RequestBody Admin admin) throws Exception {
+        return authService.registerAdmin(admin);
     }
 
     @PostMapping("/admin/login")
-    public ResponseEntity<?> loginAdmin(@RequestBody Map<String, String> request) {
-        try {
-            String token = authService.loginAdmin(request.get("username"), request.get("password"));
-            Map<String, Object> response = new HashMap<>();
-            response.put("message", "Admin login successful");
-            response.put("token", token);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
-        }
+    public String loginAdmin(@RequestParam String username, @RequestParam String password) throws Exception {
+        return authService.loginAdmin(username, password);
     }
 }

@@ -40,8 +40,20 @@ public class AuthServiceImple implements AuthService {
         if (userRepository.findByEmail(user.getEmail()) != null) {
             throw new Exception("Email already exists");
         }
+
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        return userRepository.save(user);
+        User savedUser = userRepository.save(user);
+
+        // ✅ Send welcome email
+        emailService.sendMail(
+                savedUser.getEmail(),
+                "Welcome to SkyNow 🌤️",
+                "Hello " + savedUser.getUsername() +
+                        ",\n\nWelcome to SkyNow! We're excited to have you on board.\n" +
+                        "Start exploring weather updates, travel analytics, and more!"
+        );
+
+        return savedUser;
     }
 
     @Override
@@ -67,10 +79,12 @@ public class AuthServiceImple implements AuthService {
         user.setPassword(passwordEncoder.encode(otp));
         userRepository.save(user);
 
+        // ✅ Send OTP email
         emailService.sendMail(
                 user.getEmail(),
-                "Your One-Time Password (OTP)",
-                "Hello " + user.getUsername() + ",\n\nYour OTP: " + otp
+                "SkyNow Password Reset OTP",
+                "Hi " + user.getUsername() + ",\n\nYour one-time password (OTP) is: " + otp +
+                        "\n\nUse this OTP to log in and reset your password."
         );
 
         return "OTP sent to email: " + user.getEmail();
@@ -104,7 +118,17 @@ public class AuthServiceImple implements AuthService {
             throw new Exception("Username already exists");
         }
         admin.setPassword(passwordEncoder.encode(admin.getPassword()));
-        return adminRepository.save(admin);
+        Admin savedAdmin = adminRepository.save(admin);
+
+        // ✅ Optional: Send admin welcome mail
+        emailService.sendMail(
+                savedAdmin.getEmail(),
+                "Welcome Admin to SkyNow ☁️",
+                "Hello " + savedAdmin.getUsername() +
+                        ",\n\nYour admin account has been created successfully."
+        );
+
+        return savedAdmin;
     }
 
     @Override
