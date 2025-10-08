@@ -1,16 +1,13 @@
 package com.example.skynow.model;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
-
 
 @Entity
 @Table(name = "users")
 public class User {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -21,16 +18,13 @@ public class User {
 
     @Column(unique = true, nullable = false)
     @Email(message = "Invalid email format")
-    @Pattern(regexp = "^[A-Za-z0-9._%+-]+@gmail\\.com$", message = "Only Gmail addresses are allowed")
-    private String email;
+    private String email; // ✅ accepts all valid email domains
 
     @NotBlank(message = "Password is required")
     private String password;
 
     @Transient
-    @NotBlank(message = "Confirm Password is required", groups = RegistrationGroup.class)
-    private String confirmPassword;
-
+    private String confirmPassword; // optional for frontend use only
 
     // Getters and Setters
     public Long getId() { return id; }

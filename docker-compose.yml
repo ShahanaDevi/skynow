@@ -1,29 +1,53 @@
 
-
 services:
+  db:
+    image: mysql:8
+    container_name: skynow-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: Skynow_db
+      MYSQL_USER: MEMBER
+      MYSQL_PASSWORD: Mysql@123
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - skynow-network
+
   backend:
     build: ./backend
     container_name: skynow-backend
+    restart: always
+    depends_on:
+      - db
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/Skynow_db
+      SPRING_DATASOURCE_USERNAME: MEMBER
+      SPRING_DATASOURCE_PASSWORD: Mysql@123
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      OPENWEATHER_API_KEY: 36d3f59af1fe2b25860269783de28b5b
+
     ports:
       - "8080:8080"
+    networks:
+      - skynow-network
 
   frontend:
     build: ./frontend
     container_name: skynow-frontend
+    restart: always
+    depends_on:
+      - backend
     ports:
-      - "3000:3000"
+      - "3000:80"
+    networks:
+      - skynow-network
 
-  db:
-    image: mysql:8
-    container_name: skynow-db
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: skynowdb
-    ports:
-      - "3306:3306"
+volumes:
+  mysql_data:
 
-  redis:
-    image: redis:alpine
-    container_name: skynow-redis
-    ports:
-      - "6379:6379"
+networks:
+  skynow-network:
+    driver: bridge

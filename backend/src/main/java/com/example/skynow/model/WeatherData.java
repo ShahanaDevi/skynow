@@ -1,15 +1,29 @@
 package com.example.skynow.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import jakarta.persistence.*;
+import lombok.*;
 
-@Data
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "weather_data")
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class WeatherData {
-    private String location;
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String cityName;
     private double temperature;
     private double humidity;
-    private String description;
+    private double pressure;
+    private String weatherDescription;
+    private double windSpeed;
+
+    private LocalDateTime timestamp;
 }
