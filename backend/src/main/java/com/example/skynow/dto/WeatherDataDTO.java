@@ -1,19 +1,26 @@
 package com.example.skynow.dto;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class WeatherDataDTO {
+    private String cityName;
+    private double temperature;
+    private double humidity;
+    private double pressure;
+    private String weatherDescription;
+    private double windSpeed;
+    private LocalDateTime timestamp;
 
-    private String cityName;            // City name (e.g., Chennai)
-    private double temperature;         // Temperature in °C
-    private double humidity;            // Humidity percentage
-    private double pressure;            // Atmospheric pressure (hPa)
-    private String weatherDescription;  // Description (e.g., "light rain")
-    private double windSpeed;           // Wind speed (m/s)
-    private String timestamp;           // When the data was recorded
+    private String location;      // for setLocation
+    private String description;   // for setDescription
+    private String icon;
 }

@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { getCurrentWeatherByCity, getCurrentLocationWithFallback, getCurrentWeatherByCoords } from '../services/weatherService';
+import ChatBot from '../components/ChatBot';
 
 const Features = () => {
   const [cityQuery, setCityQuery] = useState('');
   const [weather, setWeather] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const onSubmitSearch = async (e) => {
     e.preventDefault();
@@ -49,7 +54,7 @@ const Features = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 relative">
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -59,22 +64,34 @@ const Features = () => {
                   <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
                 </svg>
               </div>
-              <span className="text-gray-900 text-xl font-bold">WeatherPro</span>
+              <span className="text-gray-900 text-xl font-bold">Skynow</span>
             </Link>
             
             <div className="flex items-center space-x-4">
-              <Link 
-                to="/login" 
-                className="text-gray-600 hover:text-blue-600 transition-colors duration-200"
-              >
-                Login
-              </Link>
-              <Link 
-                to="/register" 
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200"
-              >
-                Get Started
-              </Link>
+              {user ? (
+                <button
+                  type="button"
+                  onClick={() => { logout(); navigate('/'); }}
+                  className="text-gray-600 hover:text-blue-600 transition-colors duration-200"
+                >
+                  Logout
+                </button>
+              ) : (
+                <>
+                  <Link 
+                    to="/login" 
+                    className="text-gray-600 hover:text-blue-600 transition-colors duration-200"
+                  >
+                    Login
+                  </Link>
+                  <Link 
+                    to="/register" 
+                    className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200"
+                  >
+                    Get Started
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -308,6 +325,9 @@ const Features = () => {
           </div>
         </div>
       </main>
+      
+      {/* Floating ChatBot */}
+      <ChatBot />
     </div>
   );
 };

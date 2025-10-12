@@ -14,7 +14,7 @@ public class OpenAiServiceWrapper {
 
     private final OpenAiService service;
 
-    public OpenAiServiceWrapper(@Value("${openai.api-key}") String apiKey) {
+    public OpenAiServiceWrapper(@Value("${openai.api.key}") String apiKey) {
         this.service = new OpenAiService(apiKey, Duration.ofSeconds(30));
     }
 

@@ -1,78 +1,57 @@
 package com.example.skynow.controller;
 
-import com.skynow.dto.WeatherDataDTO;
-import com.skynow.service.NlpService;
-import com.skynow.service.OpenAiServiceWrapper;
-import com.skynow.service.WeatherService;
-import lombok.RequiredArgsConstructor;
+import com.example.skynow.dto.WeatherDataDTO;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.time.LocalDate;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/weather")
-@RequiredArgsConstructor
+@CrossOrigin(origins = "*") // Allow requests from any origin (for development)
 public class WeatherController {
 
-    private final WeatherService weatherService;
-    private final OpenAiServiceWrapper aiService;
-    private final NlpService nlpService;
-
-    // 🌤️ 1️⃣ Current Weather
-    @GetMapping("/current/{city}")
-    public WeatherDataDTO getCurrentWeather(@PathVariable String city) {
-        return weatherService.fetchCurrentWeather(city);
+    /**
+     * Get current weather data by city name
+     * 
+     * @param city The name of the city
+     * @return Weather data for the specified city
+     */
+    @GetMapping("/current/city/{city}")
+    public ResponseEntity<WeatherDataDTO> getCurrentWeatherByCity(@PathVariable String city) {
+        // This is a placeholder implementation
+        // In a real application, you would call a service to fetch weather data
+        WeatherDataDTO weatherData = new WeatherDataDTO();
+        weatherData.setLocation(city);
+        weatherData.setTemperature(25.0);
+        weatherData.setDescription("Sunny");
+        weatherData.setIcon("01d");
+        weatherData.setHumidity(65);
+        weatherData.setWindSpeed(5.5);
+        
+        return ResponseEntity.ok(weatherData);
     }
 
-    // 🌦️ 2️⃣ Forecast Data
-    @GetMapping("/forecast/{city}")
-    public List<WeatherDataDTO> getForecast(@PathVariable String city) {
-        return weatherService.fetchForecast(city);
-    }
-
-    // 📅 3️⃣ Historical Weather
-    @GetMapping("/history/{city}")
-    public List<WeatherDataDTO> getHistoricalData(
-            @PathVariable String city,
-            @RequestParam(required = false) String date // e.g. 2024-10-07
-    ) {
-        LocalDate targetDate = (date != null) ? LocalDate.parse(date) : LocalDate.now().minusYears(1);
-        return weatherService.getHistoricalData(city, targetDate);
-    }
-
-    // 🛰️ 4️⃣ Raw Weather Data by Coordinates
-    @GetMapping("/raw")
-    public String getRawWeather(@RequestParam double lat, @RequestParam double lon) {
-        return weatherService.getWeatherData(lat, lon);
-    }
-
-    // 🤖 5️⃣ AI-Generated Summary by Coordinates
-    @GetMapping("/summary")
-    public String getWeatherSummary(@RequestParam double lat, @RequestParam double lon) {
-        String data = weatherService.getWeatherData(lat, lon);
-        String prompt = weatherService.buildPrompt(data);
-        return aiService.generateText(prompt);
-    }
-
-    // 🌍 6️⃣ AI-Generated Summary by City/Location Name
-    @GetMapping("/summary/location")
-    public String getWeatherSummaryByLocation(@RequestParam String location) {
-        double[] coords = weatherService.getCoordinatesFromName(location);
-        String data = weatherService.getWeatherData(coords[0], coords[1]);
-        String prompt = weatherService.buildPrompt(data);
-        return aiService.generateText(prompt);
-    }
-
-    // 💬 7️⃣ Natural Language Query (NLP)
-    @GetMapping("/ask")
-    public String askWeather(@RequestParam String query) {
-        return nlpService.handleUserQuery(query);
-    }
-
-    // 🌐 8️⃣ Forecast Translation
-    @GetMapping("/translate")
-    public String translateForecast(@RequestParam String forecast, @RequestParam String lang) {
-        return nlpService.translateForecast(forecast, lang);
+    /**
+     * Get current weather data by coordinates
+     * 
+     * @param latitude The latitude coordinate
+     * @param longitude The longitude coordinate
+     * @return Weather data for the specified coordinates
+     */
+    @GetMapping("/current/coords")
+    public ResponseEntity<WeatherDataDTO> getCurrentWeatherByCoords(
+            @RequestParam double latitude, 
+            @RequestParam double longitude) {
+        
+        // This is a placeholder implementation
+        // In a real application, you would call a service to fetch weather data
+        WeatherDataDTO weatherData = new WeatherDataDTO();
+        weatherData.setLocation("Location at " + latitude + ", " + longitude);
+        weatherData.setTemperature(23.0);
+        weatherData.setDescription("Partly Cloudy");
+        weatherData.setIcon("02d");
+        weatherData.setHumidity(70);
+        weatherData.setWindSpeed(4.2);
+        
+        return ResponseEntity.ok(weatherData);
     }
 }

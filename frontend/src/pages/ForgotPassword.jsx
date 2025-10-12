@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { Link, useNavigate } from 'react-router-dom';
 import { FormInput } from '../components/FormInput';
 import { Button } from '../components/Button';
+import axios from 'axios';
 
 export const ForgotPassword = () => {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  
-  const { forgotPassword, isLoading } = useAuth();
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e) => {
-    setEmail(e.target.value);
+    setIdentifier(e.target.value);
     if (error) setError('');
   };
 
@@ -22,26 +22,43 @@ export const ForgotPassword = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!email) {
-      setError('Email is required');
+
+    if (!identifier) {
+      setError('Username or Email is required');
       return;
     }
-    
-    if (!validateEmail(email)) {
+
+    // Validate email format only if @ is present
+    if (identifier.includes('@') && !validateEmail(identifier)) {
       setError('Please enter a valid email address');
       return;
     }
 
     try {
-      await forgotPassword(email);
-      setSuccess(true);
+      setIsLoading(true);
       setError('');
+
+      // 🔹 API call to backend
+      const response = await axios.post('http://localhost:8080/api/user/forgot-password', {
+        loginId: identifier, // backend expects "loginId"
+      });
+
+      console.log(response.data);
+      // Redirect to change password page with loginId
+      navigate(`/change-password?loginId=${encodeURIComponent(identifier)}`);
     } catch (err) {
-      setError(err.message || 'Failed to send reset email');
+      console.error(err);
+      if (err.response && err.response.data) {
+        setError(err.response.data);
+      } else {
+        setError('Failed to send reset link. Try again later.');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  // ✅ Success Screen
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -56,14 +73,14 @@ export const ForgotPassword = () => {
               Check your email
             </h2>
             <p className="mt-2 text-center text-sm text-gray-600">
-              We've sent a password reset link to <strong>{email}</strong>
+              We've sent a password reset OTP to <strong>{identifier}</strong>
             </p>
             <p className="mt-4 text-center text-sm text-gray-600">
-              Didn't receive the email? Check your spam folder or{' '}
+              Didn’t receive the email? Check your spam folder or{' '}
               <button
                 onClick={() => {
                   setSuccess(false);
-                  setEmail('');
+                  setIdentifier('');
                 }}
                 className="font-medium text-primary-600 hover:text-primary-500"
               >
@@ -84,6 +101,7 @@ export const ForgotPassword = () => {
     );
   }
 
+  // 🔹 Forgot Password Form
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
@@ -92,23 +110,27 @@ export const ForgotPassword = () => {
             Forgot your password?
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Enter your email address and we'll send you a link to reset your password.
+            Enter your username or email address and we'll send you an OTP to reset your password.
           </p>
         </div>
-        
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div>
             <FormInput
-              label="Email address"
-              type="email"
-              name="email"
-              value={email}
+              label="Username or Email"
+              type="text"
+              name="identifier"
+              value={identifier}
               onChange={handleChange}
               error={error}
-              placeholder="Enter your email"
+              placeholder="Enter your username or email"
               required
             />
           </div>
+
+          {error && (
+            <p className="text-red-500 text-sm text-center">{error}</p>
+          )}
 
           <div>
             <Button
@@ -119,7 +141,7 @@ export const ForgotPassword = () => {
               disabled={isLoading}
               className="w-full"
             >
-              Send Reset Link
+              {isLoading ? 'Sending...' : 'Send Reset Link'}
             </Button>
           </div>
 

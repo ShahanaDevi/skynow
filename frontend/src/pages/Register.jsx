@@ -68,17 +68,18 @@ export const Register = () => {
       setIsLoading(true);
       setApiError(null);
 
-      const response = await axios.post('http://localhost:8080/api/register', {
-        username: formData.username,
-        email: formData.email,
+      // ✅ Call Spring Boot backend register API
+      const response = await axios.post('http://localhost:8080/api/user/register', {
+        username: formData.username.trim(),
+        email: formData.email.trim(),
         password: formData.password,
         confirmPassword: formData.confirmPassword,
       });
 
-      alert(response.data);
-      navigate('/login');
+      alert(response.data); // success message from backend
+      navigate('/login'); // redirect to login page
     } catch (err) {
-      const serverMessage = err?.response?.data?.message || err?.response?.data || err?.message || 'Registration failed';
+      const serverMessage = err?.response?.data || err?.message || 'Registration failed';
       setApiError(typeof serverMessage === 'string' ? serverMessage : JSON.stringify(serverMessage));
     } finally {
       setIsLoading(false);

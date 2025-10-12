@@ -221,15 +221,9 @@ const Home = () => {
         <div className="flex items-center space-x-4">
           <Link 
             to="/login" 
-            className="text-white hover:text-blue-200 transition-colors duration-200"
-          >
-            Login
-          </Link>
-          <Link 
-            to="/register" 
             className="bg-white text-blue-600 px-6 py-2 rounded-lg font-medium hover:bg-blue-50 transition-colors duration-200"
           >
-            Get Started
+            Login
           </Link>
         </div>
       </header>
@@ -319,7 +313,7 @@ const Home = () => {
 
           <div className="mb-8">
             <Link 
-              to="/features" 
+              to="/login" 
               className="text-white text-lg underline hover:text-blue-200 transition-colors duration-200"
             >
               Know about our future →

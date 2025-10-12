@@ -2,7 +2,7 @@ import axios from 'axios';
 import { mockAuthService } from './mockAuthService';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
-const USE_MOCK_SERVICE = process.env.REACT_APP_USE_MOCK_SERVICE !== 'false';
+const USE_MOCK_SERVICE = false; // Force real backend
 
 // Debug base URL selection
 if (!USE_MOCK_SERVICE) {
@@ -65,14 +65,21 @@ const attemptLogin = async (identifier, password) => {
   const isEmail = typeof identifier === 'string' && identifier.includes('@');
 
   const relativeAttempts = [
+    { url: '/user/login', body: { loginId: identifier, password } },
     { url: '/login', body: isEmail ? { email: identifier, password } : { username: identifier, password } },
     { url: '/login', body: { identifier, password } },
     { url: '/auth/login', body: isEmail ? { email: identifier, password } : { username: identifier, password } },
     { url: '/auth/login', body: { identifier, password } },
+    { url: '/user/login', body: isEmail ? { email: identifier, password } : { username: identifier, password } },
+    { url: '/authenticate', body: isEmail ? { email: identifier, password } : { username: identifier, password } },
+    { url: '/signin', body: isEmail ? { email: identifier, password } : { username: identifier, password } },
   ];
 
   const absoluteAttempts = [
     { url: 'http://localhost:8080/api/login', body: isEmail ? { email: identifier, password } : { username: identifier, password } },
+    { url: 'http://localhost:8080/api/user/login', body: { loginId: identifier, password } },
+    { url: 'http://localhost:8080/api/auth/login', body: isEmail ? { email: identifier, password } : { username: identifier, password } },
+    { url: 'http://localhost:8080/api/authenticate', body: isEmail ? { email: identifier, password } : { username: identifier, password } },
   ];
 
   let lastError;

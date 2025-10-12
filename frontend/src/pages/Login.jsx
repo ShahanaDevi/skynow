@@ -11,7 +11,9 @@ export const Login = () => {
   });
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState(null);
-  const { login, isLoading } = useAuth();
+  const [isLoading, setIsLoading] = useState(false); // ✅ Local loading state
+
+  const { login } = useAuth();
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -22,6 +24,7 @@ export const Login = () => {
       ...prev,
       [name]: value,
     }));
+
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -29,15 +32,12 @@ export const Login = () => {
 
   const validateForm = () => {
     const newErrors = {};
-
     if (!formData.identifier.trim()) {
       newErrors.identifier = 'Username or Email is required';
     }
-
     if (!formData.password.trim()) {
       newErrors.password = 'Password is required';
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -48,14 +48,15 @@ export const Login = () => {
 
     try {
       setApiError(null);
-
+      setIsLoading(true);
       await login(formData.identifier.trim(), formData.password.trim());
-
-      const from = (location.state)?.from?.pathname || '/dashboard';
+      const from = location.state?.from?.pathname || '/features';
       navigate(from, { replace: true });
     } catch (err) {
-      const serverMessage = err?.message || 'Login failed';
-      setApiError(typeof serverMessage === 'string' ? serverMessage : JSON.stringify(serverMessage));
+      const message = err?.message || 'Login failed';
+      setApiError(message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -117,6 +118,15 @@ export const Login = () => {
             >
               {isLoading ? 'Signing in...' : 'Sign In'}
             </Button>
+
+            <div className="text-center mt-4">
+              <Link 
+                to="/forgot-password" 
+                className="text-sm text-blue-600 hover:text-blue-500 font-medium"
+              >
+                Forgot Password?
+              </Link>
+            </div>
 
             <div className="text-center mt-4">
               <p className="text-sm text-gray-600">

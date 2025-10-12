@@ -1,9 +1,12 @@
 package com.example.skynow.controller;
 
-import com.skynow.service.WeatherService;
+import com.example.skynow.dto.WeatherDataDTO;
+import com.example.skynow.service.WeatherService;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -17,16 +20,23 @@ public class MapController {
     }
 
     @GetMapping("/weather")
-    public Map<String, Object> getWeatherByLocation(@RequestParam String location) throws Exception {
-        double[] coords = weatherService.getCoordinatesFromName(location);
-        String data = weatherService.getWeatherData(coords[0], coords[1]);
+    public Map<String, Object> getWeatherByCity(@RequestParam String city) {
+        WeatherDataDTO currentWeather = weatherService.fetchCurrentWeather(city);
+        List<WeatherDataDTO> forecast = weatherService.fetchForecast(city);
 
         Map<String, Object> response = new HashMap<>();
-        response.put("location", location);
-        response.put("latitude", coords[0]);
-        response.put("longitude", coords[1]);
-        response.put("stats", weatherService.extractStats(data));
+        response.put("city", currentWeather.getCityName());
+        response.put("current", currentWeather);
+        response.put("forecast", forecast);
 
         return response;
+    }
+
+    @GetMapping("/historical")
+    public List<WeatherDataDTO> getHistoricalWeather(
+            @RequestParam String city,
+            @RequestParam String date) {
+        LocalDate parsedDate = LocalDate.parse(date);
+        return weatherService.getHistoricalData(city, parsedDate);
     }
 }
