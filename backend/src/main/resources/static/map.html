@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🌦️ SkyNow Weather Map</title>
+    <meta charset="UTF-8"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        html, body { height: 100%; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        #controls { padding: 10px; background: #f4f4f4; border-bottom: 1px solid #ccc; position: relative; }
+        input { padding: 8px; width: 250px; font-size: 14px; }
+        button { padding: 6px 12px; margin-left:10px; cursor:pointer; }
+        #suggestions { background: #fff; border: 1px solid #ccc; max-width: 250px; position: absolute; z-index: 1000; }
+        #suggestions div { padding: 8px; cursor: pointer; font-size: 14px; }
+        #suggestions div:hover { background: #e0e0e0; }
+
+        #map {
+            height: calc(100vh - 60px); /* full height minus header */
+            width: 100%;
+        }
+
+        /* Modal overlay */
+        #overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.3);
+            display: none;
+            z-index: 1500;
+        }
+
+        /* Centered forecast panel */
+        #forecastPanel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 400px;
+            max-width: 90%;
+            background: rgba(255,255,255,0.95);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            display: none;
+            z-index: 2000;
+        }
+        #forecastPanel canvas { width: 100% !important; height: auto !important; }
+        #forecastClose {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #333;
+        }
+
+        #legend {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(255,255,255,0.9);
+            padding: 8px;
+            border-radius: 5px;
+            font-size: 12px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            line-height: 1.5;
+        }
+        #legend span { display:inline-block; width:10px; height:10px; margin-right:4px; border-radius:50%; }
+    </style>
+</head>
+<body>
+
+<h2 style="padding:10px;">🌦️ SkyNow Weather Map</h2>
+
+<div id="controls">
+    <input type="text" id="locationInput" placeholder="Enter city name..." oninput="fetchSuggestions(this.value)" />
+    <button id="toggleMode">Show PM2.5</button>
+    <div id="suggestions"></div>
+</div>
+
+<div id="map"></div>
+<div id="overlay"></div>
+
+<div id="forecastPanel">
+    <span id="forecastClose">&times;</span>
+    <h3 id="forecastTitle"></h3>
+    <canvas id="forecastChart" height="150"></canvas>
+</div>
+
+<div id="legend"></div>
+
+<script>
+    const map = L.map('map').setView([20.5937, 78.9629], 5);
+
+    const osm = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 19
+    }).addTo(map);
+
+    let forecastChart;
+    let mode = "temperature";
+    let markers = [];
+
+    function getTempColor(temp){
+        if(temp<=10) return "#4A90E2";
+        if(temp<=20) return "#50E3C2";
+        if(temp<=30) return "#F5A623";
+        return "#D0021B";
+    }
+    function getPM25Color(pm25){
+        if(pm25<=30) return "#50E3C2";
+        if(pm25<=60) return "#F5A623";
+        if(pm25<=100) return "#D0021B";
+        return "#800000";
+    }
+
+    function updateLegend(){
+        const legend = document.getElementById("legend");
+        if(mode==="temperature"){
+            legend.innerHTML = `<b>Temp (°C)</b><br>
+          <span style="background:#4A90E2"></span> ≤10<br>
+          <span style="background:#50E3C2"></span> 11-20<br>
+          <span style="background:#F5A623"></span> 21-30<br>
+          <span style="background:#D0021B"></span> ≥31`;
+        } else {
+            legend.innerHTML = `<b>PM2.5 (µg/m³)</b><br>
+          <span style="background:#50E3C2"></span> 0-30 (Good)<br>
+          <span style="background:#F5A623"></span> 31-60 (Moderate)<br>
+          <span style="background:#D0021B"></span> 61-100 (Unhealthy)<br>
+          <span style="background:#800000"></span> 101+ (Hazardous)`;
+        }
+    }
+    updateLegend();
+
+    document.getElementById("toggleMode").onclick = ()=>{
+        mode = mode==="temperature"?"pm25":"temperature";
+        document.getElementById("toggleMode").textContent = mode==="temperature"?"Show PM2.5":"Show Temperature";
+        updateLegend();
+        markers.forEach(item=>{
+            const color = mode==="temperature"?getTempColor(item.data.stats.temperature):getPM25Color(item.data.stats.pm25);
+            item.marker.setStyle({color: color, fillColor: color});
+        });
+    };
+
+    const overlay = document.getElementById("overlay");
+    document.getElementById("forecastClose").onclick = ()=>{
+        document.getElementById("forecastPanel").style.display="none";
+        overlay.style.display="none";
+    };
+    overlay.onclick = ()=>{
+        document.getElementById("forecastPanel").style.display="none";
+        overlay.style.display="none";
+    };
+
+    async function fetchSuggestions(query){
+        const suggestionsDiv = document.getElementById("suggestions");
+        suggestionsDiv.innerHTML="";
+        if(query.length<2) return;
+        try{
+            const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5`);
+            const json = await res.json();
+            if(!json.results) return;
+            json.results.forEach(result=>{
+                const div = document.createElement("div");
+                div.textContent = `${result.name}, ${result.country}`;
+                div.onclick = ()=>{
+                    document.getElementById("locationInput").value = result.name;
+                    suggestionsDiv.innerHTML="";
+                    loadWeather(result.name);
+                };
+                suggestionsDiv.appendChild(div);
+            });
+        }catch(err){ console.error(err); }
+    }
+
+    async function loadWeather(location){
+        try{
+            const res = await fetch(`/api/map/weather?location=${encodeURIComponent(location)}`);
+            if(!res.ok){ alert("Weather not found for: "+location); return; }
+            const data = await res.json();
+            const color = mode==="temperature"?getTempColor(data.stats.temperature):getPM25Color(data.stats.pm25);
+
+            const marker = L.circleMarker([data.latitude,data.longitude],{
+                radius: 12,
+                color: color,
+                fillColor: color,
+                fillOpacity:0.7
+            }).addTo(map);
+
+            marker.bindPopup(`
+              <div style="text-align:center; line-height:1.4;">
+                  <h4>${data.location}</h4>
+                  🌡️ <b>${data.stats.temperature}°C</b><br>
+                  🌧️ Rain: <b>${data.stats.precipitation} mm</b><br>
+                  💨 Wind: <b>${data.stats.windspeed} km/h</b><br>
+                  🫁 PM2.5: <b>${data.stats.pm25}</b> µg/m³
+              </div>
+          `);
+
+            marker.on('mouseover', ()=>marker.openPopup());
+            marker.on('mouseout', ()=>marker.closePopup());
+            marker.on('click', ()=>{
+                map.setView([data.latitude,data.longitude],7);
+                loadForecast(data.latitude,data.longitude,data.location);
+                document.getElementById("forecastPanel").style.display="block";
+                overlay.style.display="block";
+            });
+
+            markers.push({marker:marker,data:data});
+
+        }catch(err){ console.error(err); }
+    }
+
+    async function loadForecast(lat,lon,city){
+        try{
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min&timezone=auto`;
+            const res = await fetch(url);
+            const json = await res.json();
+
+            const days = json.daily.time.map(date=>new Date(date).toLocaleDateString('en-IN',{weekday:'short'}));
+            const maxTemps = json.daily.temperature_2m_max;
+            const minTemps = json.daily.temperature_2m_min;
+
+            document.getElementById("forecastTitle").textContent = `5-Day Forecast for ${city}`;
+
+            if(forecastChart) forecastChart.destroy();
+
+            const ctx = document.getElementById("forecastChart").getContext("2d");
+            forecastChart = new Chart(ctx,{
+                type:'line',
+                data:{labels:days,datasets:[
+                        {label:'Max Temp (°C)',data:maxTemps,borderWidth:2,borderColor:'red',fill:false},
+                        {label:'Min Temp (°C)',data:minTemps,borderWidth:2,borderColor:'blue',fill:false}
+                    ]},
+                options:{responsive:true,scales:{y:{beginAtZero:false}},plugins:{legend:{display:true}}}
+            });
+
+        }catch(err){ console.error(err); }
+    }
+
+    // Default cities
+    ["Chennai","Delhi","Mumbai"].forEach(city=>loadWeather(city));
+
+</script>
+
+</body>
+</html>

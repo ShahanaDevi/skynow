@@ -1,0 +1,79 @@
+########################################
+# Java / Spring Boot
+########################################
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+*.class
+*.log
+*.jar
+*.war
+
+# Ignore Spring Boot config files
+src/main/resources/application.properties
+src/main/resources/application-dev.properties
+src/main/resources/application-prod.properties
+
+########################################
+# IntelliJ IDEA
+########################################
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+########################################
+# Eclipse / STS
+########################################
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache
+
+########################################
+# NetBeans
+########################################
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+/build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+########################################
+# VS Code
+########################################
+.vscode/
+
+########################################
+# Node.js / React Frontend
+########################################
+node_modules/
+build/
+dist/
+.cache/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+########################################
+# Docker / DevOps
+########################################
+docker-compose.yml
+docker-compose.override.yml
+.env
+.env.local
+
+########################################
+# OS / Misc
+########################################
+.DS_Store
+Thumbs.db
