@@ -67,7 +67,7 @@ yarn-error.log*
 ########################################
 # Docker / DevOps
 ########################################
-docker-compose.yml
+
 docker-compose.override.yml
 .env
 .env.local

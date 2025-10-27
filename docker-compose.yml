@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: skynow-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: skynow
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - skynow-network
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -proot | grep 'mysqld is alive' || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  redis:
+    image: redis:7
+    container_name: skynow-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - skynow-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: skynow-backend
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://skynow-db:3306/skynow
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATA_REDIS_HOST: skynow-redis
+      SPRING_DATA_REDIS_PORT: 6379
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - skynow-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: skynow-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      - REACT_APP_API_URL=http://backend:8080
+    networks:
+      - skynow-network
+
+  adminer:
+    image: adminer
+    container_name: skynow-adminer
+    restart: always
+    ports:
+      - "8081:8080"
+    depends_on:
+      - db
+    networks:
+      - skynow-network
+
+networks:
+  skynow-network:
+    driver: bridge
+
+volumes:
+  db_data:
