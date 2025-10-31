@@ -14,6 +14,10 @@ import { ResetPassword } from './pages/ResetPassword';
 import { ChangePassword } from './pages/ChangePassword';
 import { Dashboard } from './pages/Dashboard';
 import WeatherAlert from './components/WeatherAlert';
+import HistoricalAnalytics from './pages/HistoricalAnalytics';
+import DetailedForecast from './pages/DetailedForecast';
+import News from './pages/News';
+import Admin from './pages/Admin';
 
 function App() {
   return (
@@ -41,9 +45,13 @@ function App() {
               }
             />
 
-            {/* Forecast and Analytics */}
+            {/* Weather Related Routes */}
             <Route path="/forecast" element={<Forecast />} />
             <Route path="/analytics" element={<Analytics />} />
+            <Route path="/historical" element={<HistoricalAnalytics />} />
+            <Route path="/detailed-forecast" element={<DetailedForecast />} />
+            <Route path="/news" element={<News />} />
+            <Route path="/admin" element={<Admin />} />
 
             {/* Catch-all: redirect unknown paths to home */}
             <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,0 +1,12 @@
+api:
+  openai:
+    # Use environment variable OPENAI_API_KEY for runtime secrets so we don't hard-code keys in source
+    api-key: ${OPENAI_API_KEY:}
+    model: ${OPENAI_MODEL:gpt-3.5-turbo}
+    fallback-model: ${OPENAI_FALLBACK_MODEL:gpt-3.5-turbo-0613}
+    max-tokens: ${OPENAI_MAX_TOKENS:500}
+    temperature: ${OPENAI_TEMPERATURE:0.7}
+  open-meteo:
+    base-url: https://api.open-meteo.com/v1
+    geocoding-url: https://geocoding-api.open-meteo.com/v1
+    air-quality-url: https://air-quality-api.open-meteo.com/v1

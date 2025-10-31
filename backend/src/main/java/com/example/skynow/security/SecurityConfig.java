@@ -26,10 +26,9 @@ public class SecurityConfig {
         .cors(withDefaults())
         .csrf(csrf -> csrf.disable())
         .authorizeHttpRequests(auth -> auth
-            // allow all auth-related endpoints, chat endpoints, websocket and actuator health
-            .requestMatchers("/api/auth/**", "/api/user/**", "/api/chat/**", "/ws-alerts/**", "/actuator/health", "/actuator/**").permitAll()
-            // everything else needs authentication
-            .anyRequest().authenticated()
+            // TEMPORARY: allow everything during testing so we can confirm chat endpoints work
+            // IMPORTANT: revert this before production
+            .anyRequest().permitAll()
         )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);

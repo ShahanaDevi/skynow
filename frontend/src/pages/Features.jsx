@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getCurrentWeatherByCity, getCurrentLocationWithFallback, getCurrentWeatherByCoords } from '../services/weatherService';
+import { getCurrentWeatherByCity, getCurrentLocationWithFallback, getCurrentWeatherByCoords, getCoordsByCityName } from '../services/weatherService';
+import LiveMapFeature from '../components/LiveMapFeature';
 import ChatBot from '../components/ChatBot';
 
 const Features = () => {
   const [cityQuery, setCityQuery] = useState('');
   const [weather, setWeather] = useState(null);
+  const [coords, setCoords] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -22,6 +24,12 @@ const Features = () => {
     try {
       const result = await getCurrentWeatherByCity(trimmed);
       setWeather(result);
+      try {
+        const c = await getCoordsByCityName(trimmed);
+        setCoords({ lat: c.latitude, lon: c.longitude });
+      } catch (_) {
+        // ignore geocoding failure
+      }
     } catch (err) {
       setWeather(null);
       setError(err);
@@ -37,6 +45,7 @@ const Features = () => {
       const location = await getCurrentLocationWithFallback();
       const result = await getCurrentWeatherByCoords(location.latitude, location.longitude);
       setWeather(result);
+      setCoords({ lat: location.latitude, lon: location.longitude });
     } catch (err) {
       setWeather(null);
       setError(err);
@@ -68,6 +77,7 @@ const Features = () => {
             </Link>
             
             <div className="flex items-center space-x-4">
+              <Link to="/news" className="text-gray-600 hover:text-blue-600 transition-colors duration-200">News</Link>
               {user ? (
                 <button
                   type="button"
@@ -231,6 +241,19 @@ const Features = () => {
               ))}
             </div>
           </div>
+
+            {/* Live Interactive Map on Features */}
+            <div className="mb-8">
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">Interactive Weather Map</h3>
+                <LiveMapFeature
+                  coords={coords}
+                  onWeatherClick={async (lat, lon) => {
+                    try { return await getCurrentWeatherByCoords(lat, lon); } catch { return null; }
+                  }}
+                />
+              </div>
+            </div>
         </div>
 
         {/* Detailed Forecast and Analytics */}
@@ -246,7 +269,10 @@ const Features = () => {
             <p className="text-gray-600 mb-4">
               View hourly and 7-day detailed weather forecasts with interactive maps and advanced meteorological data.
             </p>
-            <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors">
+            <button 
+              onClick={() => navigate('/forecast', { state: { weather } })}
+              className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+            >
               Explore Forecast
             </button>
           </div>
@@ -260,10 +286,10 @@ const Features = () => {
               <h3 className="text-xl font-semibold text-gray-900">Historical Analytics</h3>
             </div>
             <p className="text-gray-600 mb-4">
-              Analyze weather patterns and trends with historical data, charts, and comprehensive meteorological insights.
+              Analyze yearly weather patterns with detailed charts showing temperature trends, precipitation, and wind patterns.
             </p>
-            <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors">
-              View Analytics
+            <button onClick={() => navigate('/historical', { state: { weather } })} className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors">
+              View Historical Data
             </button>
           </div>
         </div>

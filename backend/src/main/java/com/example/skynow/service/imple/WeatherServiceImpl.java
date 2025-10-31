@@ -21,6 +21,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @Service
 public class WeatherServiceImpl implements WeatherService {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(WeatherServiceImpl.class);
+    
     private final WeatherDataRepository weatherRepo;
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper mapper = new ObjectMapper();
@@ -132,12 +134,19 @@ public class WeatherServiceImpl implements WeatherService {
 
     @Override
     public List<WeatherDataDTO> getHistoricalData(String city, LocalDate date) {
-        LocalDateTime start = date.atStartOfDay();
-        LocalDateTime end = date.plusDays(1).atStartOfDay();
-
-        return weatherRepo.findByCityAndDateRange(city, start, end)
-                .stream()
-                .map(data -> WeatherDataDTO.builder()
+        log.info("Fetching historical data for city: {} and date: {}", city, date);
+        try {
+            // First try to get from database
+            LocalDateTime start = date.atStartOfDay();
+            LocalDateTime end = date.plusDays(1).atStartOfDay();
+            
+            log.debug("Looking up in database for date range: {} to {}", start, end);
+            List<WeatherData> dbData = weatherRepo.findByCityAndDateRange(city, start, end);
+            
+            if (!dbData.isEmpty()) {
+                log.info("Found {} records in database", dbData.size());
+                return dbData.stream()
+                    .map(data -> WeatherDataDTO.builder()
                         .cityName(data.getCityName())
                         .temperature(data.getTemperature())
                         .humidity(data.getHumidity())
@@ -146,7 +155,84 @@ public class WeatherServiceImpl implements WeatherService {
                         .windSpeed(data.getWindSpeed())
                         .timestamp(data.getTimestamp())
                         .build())
-                .toList();
+                    .toList();
+            }
+            
+            log.info("No data found in database, fetching from Open-Meteo API");
+            
+            // If not in database, fetch from Open-Meteo API
+            log.debug("Getting coordinates for city: {}", city);
+            double[] coords = getCoordinatesFromName(city);
+            log.info("Found coordinates: lat={}, lon={}", coords[0], coords[1]);
+            
+            // Open-Meteo historical API (ERA5) endpoint - use /v1/era5
+            String weatherUrl = String.format(
+                "https://archive-api.open-meteo.com/v1/era5?latitude=%f&longitude=%f" +
+                "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max" +
+                "&start_date=%s&end_date=%s&timezone=auto",
+                coords[0], coords[1],
+                date.toString(),
+                date.toString()
+            );
+            
+            log.debug("Fetching from URL: {}", weatherUrl);
+            // Use RestTemplate exchange to capture status and body for better logging
+            String weatherData;
+            try {
+                weatherData = restTemplate.getForObject(weatherUrl, String.class);
+            } catch (org.springframework.web.client.HttpClientErrorException | org.springframework.web.client.HttpServerErrorException ex) {
+                String body = ex.getResponseBodyAsString();
+                log.error("Open-Meteo returned error {} for URL: {}. Body: {}", ex.getStatusCode(), weatherUrl, body);
+                throw new RuntimeException("Upstream Open-Meteo error: " + ex.getStatusCode() + " - " + body, ex);
+            } catch (org.springframework.web.client.ResourceAccessException ex) {
+                log.error("Network error when calling Open-Meteo: {}", ex.getMessage(), ex);
+                throw new RuntimeException("Network error when calling Open-Meteo: " + ex.getMessage(), ex);
+            }
+
+            if (weatherData == null) {
+                throw new RuntimeException("No historical weather data received from API");
+            }
+
+            log.debug("Received weather data (truncated): {}", weatherData.length() > 1000 ? weatherData.substring(0, 1000) + "..." : weatherData);
+            JsonNode root = mapper.readTree(weatherData);
+            JsonNode daily = root.path("daily");
+            
+            if (daily.isMissingNode() || daily.isEmpty()) {
+                throw new RuntimeException("No daily weather data available");
+            }
+            
+            double pressureVal = 1013.0;
+            if (daily.has("pressure_msl") && daily.path("pressure_msl").size() > 0) {
+                pressureVal = daily.path("pressure_msl").get(0).asDouble(1013.0);
+            }
+
+            WeatherDataDTO dto = WeatherDataDTO.builder()
+                .cityName(city)
+                .temperature(daily.path("temperature_2m_max").get(0).asDouble(0.0))
+                .humidity(50.0) // Default value as historical API doesn't provide humidity
+                .pressure(pressureVal)
+                .weatherDescription("Historical weather")
+                .windSpeed(daily.path("windspeed_10m_max").get(0).asDouble(0.0))
+                .timestamp(start)
+                .build();
+            
+            log.info("Successfully fetched historical data: {}", dto);
+            
+            // Save to database for future use
+            try {
+                saveWeatherData(dto);
+                log.info("Saved weather data to database");
+            } catch (Exception e) {
+                log.warn("Failed to save weather data to database: {}", e.getMessage());
+                // Continue even if save fails
+            }
+            
+            return List.of(dto);
+            
+        } catch (Exception e) {
+            log.error("Failed to fetch historical data for city: {} and date: {}", city, date, e);
+            throw new RuntimeException("Failed to fetch historical weather data: " + e.getMessage(), e);
+        }
     }
 
     private void saveWeatherData(WeatherDataDTO dto) {
@@ -183,21 +269,38 @@ public class WeatherServiceImpl implements WeatherService {
     @Override
     public String getWeatherData(double lat, double lon) {
         try {
+            // Get historical weather data
+            LocalDate now = LocalDate.now();
+            LocalDate lastYear = now.minusYears(1);
+            
             String weatherUrl = String.format(
-                    "https://api.open-meteo.com/v1/forecast?latitude=%f&longitude=%f&hourly=temperature_2m,precipitation,windspeed_10m&timezone=auto",
-                    lat, lon
+                    "https://api.open-meteo.com/v1/forecast?latitude=%f&longitude=%f" +
+                    "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,pressure_msl,relative_humidity_2m" +
+                    "&start_date=%s&end_date=%s&timezone=auto",
+                    lat, lon,
+                    lastYear.toString(),
+                    now.toString()
             );
-
-            String airUrl = String.format(
-                    "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=%f&longitude=%f&hourly=pm2_5&timezone=auto",
-                    lat, lon
-            );
-
+            
+            log.info("Fetching weather data from URL: {}", weatherUrl);
             String weather = restTemplate.getForObject(weatherUrl, String.class);
-            String air = restTemplate.getForObject(airUrl, String.class);
-
-            return "{ \"weather\": " + weather + ", \"air\": " + air + " }";
+            log.debug("Received weather data: {}", weather);
+            
+            if (weather == null) {
+                throw new RuntimeException("No weather data received from API");
+            }
+            
+            // Validate JSON response
+            try {
+                mapper.readTree(weather);
+            } catch (Exception e) {
+                log.error("Invalid JSON response from API: {}", weather);
+                throw new RuntimeException("Invalid JSON response from weather API", e);
+            }
+            
+            return weather;
         } catch (org.springframework.web.client.RestClientException e) {
+            log.error("Failed to fetch weather data for lat={}, lon={}", lat, lon, e);
             throw new RuntimeException("Unable to fetch weather data for lat=" + lat + ", lon=" + lon, e);
         }
     }
@@ -205,20 +308,32 @@ public class WeatherServiceImpl implements WeatherService {
     @Override
     public Map<String, Object> extractStats(String json) {
         try {
+            log.debug("Extracting stats from JSON: {}", json);
             JsonNode root = mapper.readTree(json);
             Map<String, Object> stats = new HashMap<>();
-            JsonNode weather = root.path("weather");
-            stats.put("temperature", weather.path("hourly").path("temperature_2m").get(0).asDouble(0.0));
-            stats.put("precipitation", weather.path("hourly").path("precipitation").get(0).asDouble(0.0));
-            stats.put("windspeed", weather.path("hourly").path("windspeed_10m").get(0).asDouble(0.0));
-            JsonNode air = root.path("air");
-            stats.put("pm25", air.path("hourly").path("pm2_5").get(0).asDouble(0.0));
+            
+            JsonNode daily = root.path("daily");
+            if (daily.isMissingNode() || daily.isEmpty()) {
+                log.error("Missing or empty 'daily' data in weather response: {}", json);
+                throw new RuntimeException("No daily weather data available");
+            }
+            
+            // Extract all available stats
+            stats.put("temperature", daily.path("temperature_2m_max").get(0).asDouble(0.0));
+            stats.put("temperature_min", daily.path("temperature_2m_min").get(0).asDouble(0.0));
+            stats.put("precipitation", daily.path("precipitation_sum").get(0).asDouble(0.0));
+            stats.put("windspeed", daily.path("windspeed_10m_max").get(0).asDouble(0.0));
+            stats.put("pressure", daily.path("pressure_msl").get(0).asDouble(1013.0));
+            stats.put("humidity", daily.path("relative_humidity_2m").get(0).asDouble(50.0));
+            
+            log.info("Extracted stats: {}", stats);
             return stats;
         } catch (java.io.IOException | IllegalArgumentException e) {
-            throw new RuntimeException("Unable to extract stats from weather JSON", e);
+            log.error("Failed to extract stats from weather JSON: {}", json, e);
+            throw new RuntimeException("Unable to extract stats from weather JSON: " + e.getMessage(), e);
         }
     }
-
+@Override
     public String buildPrompt(String json) {
         try {
             Map<String, Object> stats = extractStats(json);

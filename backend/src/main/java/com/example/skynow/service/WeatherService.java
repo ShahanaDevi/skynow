@@ -23,5 +23,6 @@ public interface WeatherService {
     // Extract simple stats map from raw weather JSON
     Map<String, Object> extractStats(String rawJson);
 
-
+    // Build AI-ready weather summary prompt
+    String buildPrompt(String rawJson);
 }

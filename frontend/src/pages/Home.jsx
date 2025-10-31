@@ -219,25 +219,6 @@ const Home = () => {
           </div>
           <span className="text-white text-2xl font-bold">Skynow</span>
         </div>
-        
-        <div className="flex items-center space-x-4">
-          {user ? (
-            <button
-              type="button"
-              onClick={() => { logout(); window.location.href = '/'; }}
-              className="text-white bg-red-500 px-4 py-2 rounded-md hover:bg-red-600 transition-colors"
-            >
-              Logout
-            </button>
-          ) : (
-            <Link 
-              to="/login" 
-              className="bg-white text-blue-600 px-6 py-2 rounded-lg font-medium hover:bg-blue-50 transition-colors duration-200"
-            >
-              Login
-            </Link>
-          )}
-        </div>
       </header>
 
       <main className="flex flex-col items-center justify-center px-8 py-16 text-center">

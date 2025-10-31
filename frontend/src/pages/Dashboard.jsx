@@ -12,6 +12,7 @@ export const Dashboard = () => {
   const { user, logout, isLoading, setIsLoading } = useAuth(); // ✅ Use context for loading
   const [weather, setWeather] = useState(null);
   const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [locationPermission, setLocationPermission] = useState(null);
 
   const handleLogout = () => {
@@ -33,6 +34,8 @@ export const Dashboard = () => {
 
       const weatherData = await getCurrentWeatherByCoords(location.latitude, location.longitude);
       setWeather(weatherData);
+      // record when we last successfully fetched weather
+      setLastUpdated(new Date().toISOString());
     } catch (err) {
       setError(err);
       setLocationPermission('denied');
@@ -127,6 +130,21 @@ export const Dashboard = () => {
                   >
                     Refresh Weather
                   </Button>
+                )}
+                {/* retry when there is an error */}
+                {error && (
+                  <button
+                    onClick={requestLocationAndWeather}
+                    className="ml-2 inline-flex items-center px-4 py-2 border border-red-300 rounded-lg text-sm text-red-700 bg-red-50 hover:bg-red-100"
+                  >
+                    Retry
+                  </button>
+                )}
+                {/* last updated info */}
+                {lastUpdated && (
+                  <div className="w-full sm:w-auto text-xs text-gray-500 self-center sm:self-auto mt-2 sm:mt-0">
+                    Last updated: {new Date(lastUpdated).toLocaleString()}
+                  </div>
                 )}
               </div>
             </div>

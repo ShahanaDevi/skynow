@@ -9,10 +9,24 @@ const isMissingApiKey = () => {
   return !val || val === 'your_api_key_here' || val === 'YOUR_OPENWEATHERMAP_API_KEY' || val.toLowerCase().includes('your');
 };
 
+// Helper: ensure response is JSON, otherwise throw with helpful debug text
+const ensureJsonResponse = async (res, label = 'API') => {
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`${label} error ${res.status}: ${text ? text.slice(0,200) : res.statusText}`);
+  }
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.toLowerCase().includes('application/json')) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`${label} returned non-JSON response: ${text ? text.slice(0,400) : 'no body'}`);
+  }
+  return res.json();
+};
+
 // eslint-disable-next-line no-unused-vars
 const parseApiError = async (response) => {
   try {
-    const data = await response.json();
+  const data = await ensureJsonResponse(response, 'OpenWeather');
     const apiMessage = data?.message || data?.error || JSON.stringify(data);
     return `Weather API error ${response.status}${response.statusText ? ` ${response.statusText}` : ''}: ${apiMessage}`;
   } catch (_) {
@@ -23,6 +37,7 @@ const parseApiError = async (response) => {
 // --- Open-Meteo fallback (no API key required) ---
 const OM_GEOCODE_URL = 'https://geocoding-api.open-meteo.com/v1/search';
 const OM_FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
+const OM_ARCHIVE_URL = 'https://archive-api.open-meteo.com/v1/archive';
 
 const mapOpenMeteoCode = (code) => {
   // Map Open-Meteo weather_code to description and closest OpenWeather icon code
@@ -50,7 +65,7 @@ const getCurrentWeatherByCityOpenMeteo = async (cityName) => {
   if (!geoRes.ok) {
     throw new Error(`Location lookup failed: ${geoRes.status}`);
   }
-  const geo = await geoRes.json();
+  const geo = await ensureJsonResponse(geoRes, 'Geocoding');
   const place = geo?.results?.[0];
   if (!place) {
     throw new Error('city not found');
@@ -71,7 +86,7 @@ const getCurrentWeatherByCityOpenMeteo = async (cityName) => {
   if (!wRes.ok) {
     throw new Error(`Weather fetch failed: ${wRes.status}`);
   }
-  const wData = await wRes.json();
+  const wData = await ensureJsonResponse(wRes, 'Open-Meteo current');
   const cur = wData?.current;
   if (!cur) {
     throw new Error('No current weather data');
@@ -108,7 +123,7 @@ const getCurrentWeatherByCoordsOpenMeteo = async (lat, lon) => {
     throw new Error(`Weather fetch failed: ${wRes.status}`);
   }
   
-  const wData = await wRes.json();
+  const wData = await ensureJsonResponse(wRes, 'Open-Meteo current');
   const cur = wData?.current;
   if (!cur) {
     throw new Error('No current weather data');
@@ -151,7 +166,7 @@ export const getCurrentWeatherByCoords = async (lat, lon) => {
       return await getCurrentWeatherByCoordsOpenMeteo(lat, lon);
     }
     
-    const data = await response.json();
+  const data = await ensureJsonResponse(response, 'OpenWeather');
     return {
       temperature: Math.round(data.main.temp),
       feelsLike: Math.round(data.main.feels_like),
@@ -201,7 +216,7 @@ export const getCurrentWeatherByCity = async (cityName) => {
       return await getCurrentWeatherByCityOpenMeteo(cityName);
     }
     
-    const data = await response.json();
+  const data = await ensureJsonResponse(response, 'OpenWeather');
     return {
       temperature: Math.round(data.main.temp),
       feelsLike: Math.round(data.main.feels_like),
@@ -245,7 +260,7 @@ export const getForecastByCoords = async (lat, lon) => {
       throw new Error(`Weather API error: ${response.status}`);
     }
     
-    const data = await response.json();
+    const data = await ensureJsonResponse(response, 'OpenWeather forecast');
     return data.list.map(item => ({
       date: new Date(item.dt * 1000),
       temperature: Math.round(item.main.temp),
@@ -319,7 +334,7 @@ const getLocationNameFromCoords = async (lat, lon) => {
     // Try Open-Meteo reverse geocoding first (no API key needed)
     const response = await fetch(`https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&count=1`);
     if (response.ok) {
-      const data = await response.json();
+      const data = await ensureJsonResponse(response, 'Reverse geocoding');
       const result = data?.results?.[0];
       if (result) {
         return {
@@ -350,11 +365,7 @@ const getLocationNameFromCoords = async (lat, lon) => {
 export const getLocationByIP = async () => {
   try {
     const response = await fetch('https://ipapi.co/json/');
-    if (!response.ok) {
-      throw new Error('IP geolocation service unavailable');
-    }
-    
-    const data = await response.json();
+    const data = await ensureJsonResponse(response, 'IP geolocation');
     if (data.latitude && data.longitude) {
       return {
         latitude: data.latitude,
@@ -431,3 +442,181 @@ export const debugLocationServices = () => {
   console.log('Location Services Debug Info:', debug);
   return debug;
 };
+
+// --- Additional helpers / exports used by frontend pages ---
+
+// Geocode a city name to coordinates (used by various pages)
+export const getCoordsByCityName = async (cityName) => {
+  try {
+    const res = await fetch(`${OM_GEOCODE_URL}?name=${encodeURIComponent(cityName)}&count=1`);
+    const data = await ensureJsonResponse(res, 'Geocoding');
+    const place = data?.results?.[0];
+    if (!place) throw new Error('city not found');
+    return { latitude: place.latitude, longitude: place.longitude, name: place.name, country: place.country_code };
+  } catch (err) {
+    throw err instanceof Error ? err : new Error('Failed to geocode city');
+  }
+};
+
+// Hourly forecast for next 24 hours (Open-Meteo)
+export const getHourlyForecastByCoords = async (lat, lon) => {
+  try {
+    const params = new URLSearchParams({
+      latitude: String(lat),
+      longitude: String(lon),
+      hourly: 'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,visibility,pressure_msl,dewpoint_2m,windgusts_10m,winddirection_10m',
+      timezone: 'auto'
+    });
+    const res = await fetch(`${OM_FORECAST_URL}?${params.toString()}`);
+    const data = await ensureJsonResponse(res, 'Hourly forecast');
+
+    const times = data.hourly.time || [];
+    const temps = data.hourly.temperature_2m || [];
+    const hum = data.hourly.relative_humidity_2m || [];
+    const codes = data.hourly.weather_code || [];
+    const winds = data.hourly.wind_speed_10m || [];
+    const gusts = data.hourly.windgusts_10m || [];
+    const winddir = data.hourly.winddirection_10m || [];
+
+    const now = new Date();
+    const list = times.map((t, i) => {
+      const dt = new Date(t);
+      const mapped = mapOpenMeteoCode(codes[i]);
+      return {
+        time: dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isoTime: t,
+        temperature: Math.round(temps[i]),
+        description: mapped.description,
+        icon: mapped.icon,
+        humidity: typeof hum[i] === 'number' ? hum[i] : null,
+        windSpeed: typeof winds[i] === 'number' ? Math.round(winds[i]) : null,
+        windGust: typeof gusts[i] === 'number' ? Math.round(gusts[i]) : null,
+        windDirection: typeof winddir[i] === 'number' ? Math.round(winddir[i]) : null,
+        isNow: Math.abs(now - dt) < 60 * 60 * 1000 // within 1 hour
+      };
+    });
+
+    // Return next 24 items (or less if not available)
+    return list.slice(0, 24);
+  } catch (err) {
+    console.error('getHourlyForecastByCoords error:', err);
+    throw err instanceof Error ? err : new Error('Failed to fetch hourly forecast');
+  }
+};
+
+// 7-day daily forecast using Open-Meteo daily fields
+export const getSevenDayForecastByCoords = async (lat, lon) => {
+  try {
+    const params = new URLSearchParams({
+      latitude: String(lat),
+      longitude: String(lon),
+      daily: 'temperature_2m_max,temperature_2m_min,weathercode,precipitation_sum,windspeed_10m_max',
+      timezone: 'auto'
+    });
+    const res = await fetch(`${OM_FORECAST_URL}?${params.toString()}`);
+    const data = await ensureJsonResponse(res, '7-day forecast');
+
+    const days = (data.daily.time || []).map((d, i) => {
+      const code = (data.daily.weathercode || [])[i];
+      const mapped = mapOpenMeteoCode(code);
+      return {
+        day: new Date(d).toLocaleDateString([], { weekday: 'short' }),
+        date: d,
+        icon: mapped.icon,
+        description: mapped.description,
+        high: Math.round((data.daily.temperature_2m_max || [])[i] ?? 0),
+        low: Math.round((data.daily.temperature_2m_min || [])[i] ?? 0),
+        precipitation: Math.round((data.daily.precipitation_sum || [])[i] ?? 0),
+        windSpeed: Math.round((data.daily.windspeed_10m_max || [])[i] ?? 0)
+      };
+    });
+
+    return days.slice(0, 7);
+  } catch (err) {
+    console.error('getSevenDayForecastByCoords error:', err);
+    throw err instanceof Error ? err : new Error('Failed to fetch 7-day forecast');
+  }
+};
+
+// Historical daily data for the past year (Open-Meteo supports historical ranges)
+/**
+ * Fetch historical daily data for the past year ending at `endDate` (optional).
+ * If `endDateISO` is provided it should be in YYYY-MM-DD format (or any ISO date string).
+ */
+export const getHistoricalYearByCoords = async (lat, lon, endDateISO) => {
+  try {
+    if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lon))) {
+      throw new Error('Invalid coordinates');
+    }
+    let end = endDateISO ? new Date(endDateISO) : new Date();
+    const now = new Date();
+    if (end > now) end = now;
+    let start = new Date(end);
+    start.setDate(end.getDate() - 365);
+    if (start > end) {
+      start = new Date(end);
+      start.setDate(end.getDate() - 30);
+    }
+    const rangeDays = Math.max(1, Math.round((end - start) / (24 * 60 * 60 * 1000)));
+    const params = new URLSearchParams({
+      latitude: String(lat),
+      longitude: String(lon),
+      start_date: start.toISOString().slice(0,10),
+      end_date: end.toISOString().slice(0,10),
+      daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max',
+      timezone: 'auto'
+    });
+    // Prefer archive API. If it fails and the requested range is short, try forecast as a fallback.
+    let data;
+    try {
+      const url = `${OM_ARCHIVE_URL}?${params.toString()}`;
+      // eslint-disable-next-line no-console
+      console.log('[historical] requesting', url);
+      const res = await fetch(url);
+      data = await ensureJsonResponse(res, 'Historical data');
+    } catch (primaryErr) {
+      const msg = String(primaryErr?.message || '');
+      const m = msg.match(/from (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})/);
+      if (m) {
+        const [_, allowStart, allowEnd] = m;
+        const startClamped = allowStart;
+        const endClamped = allowEnd;
+        const p2 = new URLSearchParams({
+          latitude: String(lat),
+          longitude: String(lon),
+          start_date: startClamped,
+          end_date: endClamped,
+          daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max',
+          timezone: 'auto'
+        });
+        const retryUrl = `${OM_ARCHIVE_URL}?${p2.toString()}`;
+        // eslint-disable-next-line no-console
+        console.log('[historical] clamped retry', retryUrl);
+        const retryRes = await fetch(retryUrl);
+        data = await ensureJsonResponse(retryRes, 'Historical data');
+      } else {
+        throw primaryErr;
+      }
+    }
+
+    const times = data.daily.time || [];
+    const tmax = data.daily.temperature_2m_max || [];
+    const tmin = data.daily.temperature_2m_min || [];
+    const precip = data.daily.precipitation_sum || [];
+    const wind = data.daily.windspeed_10m_max || [];
+
+    const arr = times.map((d, i) => ({
+      date: d,
+      tempMax: typeof tmax[i] === 'number' ? Math.round(tmax[i]) : null,
+      tempMin: typeof tmin[i] === 'number' ? Math.round(tmin[i]) : null,
+      precip: typeof precip[i] === 'number' ? Math.round(precip[i]*10)/10 : 0,
+      windMax: typeof wind[i] === 'number' ? Math.round(wind[i]) : 0
+    }));
+
+    return arr;
+  } catch (err) {
+    console.error('getHistoricalYearByCoords error:', err);
+    throw err instanceof Error ? err : new Error('Failed to fetch historical data');
+  }
+};
+
