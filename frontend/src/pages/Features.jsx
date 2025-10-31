@@ -77,13 +77,28 @@ const Features = () => {
             </Link>
             
             <div className="flex items-center space-x-4">
-              <Link to="/news" className="text-gray-600 hover:text-blue-600 transition-colors duration-200">News</Link>
+              <Link to="/news" className="inline-flex items-center gap-1.5 text-gray-600 hover:text-blue-600 transition-colors duration-200">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                  <path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h11a3 3 0 003-3V6a2 2 0 00-2-2H4z" />
+                  <path d="M6 7h6v2H6V7zm0 3h8v2H6v-2z" className="opacity-75" />
+                </svg>
+                News
+              </Link>
+              <Link to="/map" className="inline-flex items-center gap-1.5 text-gray-600 hover:text-blue-600 transition-colors duration-200">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                  <path fillRule="evenodd" d="M10 2a6 6 0 00-6 6c0 4.5 6 10 6 10s6-5.5 6-10a6 6 0 00-6-6zm0 8a2 2 0 110-4 2 2 0 010 4z" clipRule="evenodd" />
+                </svg>
+                Map
+              </Link>
               {user ? (
                 <button
                   type="button"
                   onClick={() => { logout(); navigate('/'); }}
-                  className="text-gray-600 hover:text-blue-600 transition-colors duration-200"
+                  className="inline-flex items-center gap-1.5 text-gray-600 hover:text-blue-600 transition-colors duration-200"
                 >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                    <path fillRule="evenodd" d="M3 10a1 1 0 011-1h8.586L10.293 6.707a1 1 0 111.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 11-1.414-1.414L12.586 11H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                  </svg>
                   Logout
                 </button>
               ) : null}

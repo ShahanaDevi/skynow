@@ -18,6 +18,7 @@ import HistoricalAnalytics from './pages/HistoricalAnalytics';
 import DetailedForecast from './pages/DetailedForecast';
 import News from './pages/News';
 import Admin from './pages/Admin';
+import Map from './pages/Map';
 
 function App() {
   return (
@@ -51,6 +52,7 @@ function App() {
             <Route path="/historical" element={<HistoricalAnalytics />} />
             <Route path="/detailed-forecast" element={<DetailedForecast />} />
             <Route path="/news" element={<News />} />
+            <Route path="/map" element={<Map />} />
             <Route path="/admin" element={<Admin />} />
 
             {/* Catch-all: redirect unknown paths to home */}
